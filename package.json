@@ -2,14 +2,20 @@
   "name": "custom-server-express",
   "version": "1.0.0",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "$(npm bin)/concurrently \"nodemon server.js\" \"json-server --watch json-server-3030/usersDB.json\"",
     "build": "next build",
     "start": "cross-env NODE_ENV=production node server.js"
   },
   "dependencies": {
+    "axios": "^0.21.0",
+    "body-parser": "^1.19.0",
+    "concurrently": "^5.3.0",
     "cross-env": "^7.0.2",
     "express": "^4.17.1",
+    "json-server": "^0.16.3",
+    "jsonwebtoken": "^8.5.1",
     "next": "latest",
+    "nodemon": "^2.0.6",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
   },
