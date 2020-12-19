@@ -1,10 +1,6 @@
 const express = require('express')
-const next = require('next')
 
 const port = parseInt(process.env.PORT, 10) || 3000
-const dev = process.env.NODE_ENV !== 'production'
-const app = next({dev})
-const handle = app.getRequestHandler()
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 const ACCESSTOKENSECRET = 'youraccesstokensecret'
@@ -44,7 +40,7 @@ const authenticateJWT = (req, res, next) => {
 const permit = (...permittedRoles) => {
     // return a middleware
     return (request, response, next) => {
-        const { user } = request
+        const {user} = request
 
         console.log({permittedRoles})
         console.log("user.role", user.role)
@@ -56,93 +52,87 @@ const permit = (...permittedRoles) => {
     }
 }
 
-app.prepare().then(() => {
-    const server = express()
-    server.use(bodyParser.json());
+const server = express()
+server.use(bodyParser.json());
 
-    server.post('/signup', async (req, res) => {
-        // Read username and password from request body
-        const {username, password} = req.body;
-        try {
-            const {data} = await axios.post(userEndPoint, {username, password, role: 1})
-            return res.json(data)
-        } catch (e) {
-            return res.status(400).send(e);
-        }
+server.post('/signup', async (req, res) => {
+    // Read username and password from request body
+    const {username, password} = req.body;
+    try {
+        const {data} = await axios.post(userEndPoint, {username, password, role: 1})
+        return res.json(data)
+    } catch (e) {
+        return res.status(400).send(e);
+    }
 
-    });
+});
 
-    server.post('/login', async (req, res) => {
-        // Read username and password from request body
-        const {username, password} = req.body;
-        const usersDB = await getUsersDB()
-        console.log({usersDB})
-        // Filter user from the users array by username and password
-        const user = usersDB.find(u => u.username === username && u.password === password);
+server.post('/login', async (req, res) => {
+    // Read username and password from request body
+    const {username, password} = req.body;
+    const usersDB = await getUsersDB()
+    console.log({usersDB})
+    // Filter user from the users array by username and password
+    const user = usersDB.find(u => u.username === username && u.password === password);
 
-        if (user) {
-            // Generate an access token
-            const accessToken = jwt.sign({username: user.username, role: user.role}, ACCESSTOKENSECRET, { expiresIn: '20m' });
-            const refreshToken = jwt.sign({ username: user.username, role: user.role }, REFRESHTOKENSECRET);
-            res.json({ accessToken, refreshToken });
-        } else {
-            res.send('Username or password incorrect');
-        }
-    });
+    if (user) {
+        // Generate an access token
+        const accessToken = jwt.sign({username: user.username, role: user.role}, ACCESSTOKENSECRET, {expiresIn: '20m'});
+        const refreshToken = jwt.sign({username: user.username, role: user.role}, REFRESHTOKENSECRET);
+        res.json({accessToken, refreshToken});
+    } else {
+        res.send('Username or password incorrect');
+    }
+});
 
-    server.post('/token', (req, res) => {
-        // user refreshTokens to generate accessToken
-        const { token } = req.body;
+server.post('/token', (req, res) => {
+    // user refreshTokens to generate accessToken
+    const {token} = req.body;
 
-        if (!token) {
-            return res.sendStatus(401);
-        }
+    if (!token) {
+        return res.sendStatus(401);
+    }
 
-        if (!refreshTokenlist.includes(token)) {
+    if (!refreshTokenlist.includes(token)) {
+        return res.sendStatus(403);
+    }
+
+    jwt.verify(token, REFRESHTOKENSECRET, (err, user) => {
+        if (err) {
             return res.sendStatus(403);
         }
 
-        jwt.verify(token, REFRESHTOKENSECRET, (err, user) => {
-            if (err) {
-                return res.sendStatus(403);
-            }
+        const accessToken = jwt.sign({username: user.username, role: user.role}, ACCESSTOKENSECRET, {expiresIn: '20m'});
 
-            const accessToken = jwt.sign({ username: user.username, role: user.role }, ACCESSTOKENSECRET, { expiresIn: '20m' });
-
-            res.json({
-                accessToken
-            });
+        res.json({
+            accessToken
         });
     });
+});
 
-    server.post('/logout', (req, res) => {
-        const { token } = req.body;
-        refreshTokenlist = refreshTokenlist.filter(token => t !== token);
+server.post('/logout', (req, res) => {
+    const {token} = req.body;
+    refreshTokenlist = refreshTokenlist.filter(token => t !== token);
 
-        res.send("Logout successful");
-    });
+    res.send("Logout successful");
+});
 
-    server.get('/admin', authenticateJWT, permit(9), (req, res) => {
-        // return app.render(req, res, '/a', req.query)
-        return res.send("<h1>hello world admin</h1>")
-    })
+server.get('/admin', authenticateJWT, permit(9), (req, res) => {
+    // return app.render(req, res, '/a', req.query)
+    return res.send("<h1>hello world admin</h1>")
+})
 
-    server.get('/a', authenticateJWT, permit(1,2,3,4,5,6,7,8,9), (req, res) => {
-        // return app.render(req, res, '/a', req.query)
-        return res.send("<h1>hello world A</h1>")
-    })
+server.get('/a', authenticateJWT, permit(1, 2, 3, 4, 5, 6, 7, 8, 9), (req, res) => {
+    // return app.render(req, res, '/a', req.query)
+    return res.send("<h1>hello world A</h1>")
+})
 
-    server.get('/b', (req, res) => {
-        // return app.render(req, res, '/b', req.query)
-        return res.send("<h1>hello world B</h1>")
-    })
+server.get('/b', (req, res) => {
+    // return app.render(req, res, '/b', req.query)
+    return res.send("<h1>hello world B</h1>")
+})
 
-    server.all('*', (req, res) => {
-        return handle(req, res)
-    })
-
-    server.listen(port, (err) => {
-        if (err) throw err
-        console.log(`> Ready on http://localhost:${port}`)
-    })
+server.listen(port, (err) => {
+    if (err) throw err
+    console.log(`> Ready on http://localhost:${port}`)
 })
